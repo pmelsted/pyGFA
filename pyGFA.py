@@ -6,26 +6,29 @@ class GFAGraph:
         self.segments = {} # id -> seq
         self.info = {} # id -> info for segment
         self.links = {} # (id,bool) -> {(id,bool)-> (cig,opts)}
+        self.paths = {} # ?!?
 
     def addSegment(self,name,seq,opts={}):
         self.segments[name] = seq
-        self.seginfo[name] = opts
+        self.info[name] = opts
 
-    def addLink(id1,o1,id2,o2,cig,opts={}):
+    def addLink(self,id1,o1,id2,o2,cig,opts={}):
         for x in (id1,id2):
             if x not in self.links:
-                self.links[x] = {}
-                self.links[x][True] = []
-                self.links[x][False] = []
-        self.links[id1][o1].append((id
+                self.links[(x,True)] = {}
+                self.links[(x,False)] = {}
+        self.links[(id1,o1)][(id2,o2)] = (cig,opts)
+        self.links[(id2,not o2)][(id1, not o1)] = (rev_cig(cig),opts)
 
 
 
-        
+def rev_cig(cig):
+    return cig # not implemented yet
+
+
 __constr = {'A':str,'Z':str,'f':float,'i':int,'H':lambda val: [int(x,16) for x in val]}
 
 def parseOpts(l):
-    
     d = {}
     for x in l:
         t = x.split(':')
@@ -34,8 +37,21 @@ def parseOpts(l):
         d[t[0]] = __constr[t[1]](t[2])
 
     return d
-        
+
+def printOpts(d):
+    r = []
+    for key in d:
+        val = d[key]
+        typ = 'Z'
+        if type(val) == float:
+            typ='f'
+        elif type(val) == int:
+            typ='i'
+        r.append(':'.join([key,typ,str(val)]))
+    return ' '.join(r)
+
 def parseGFA(fn,skipSeq=False):
+    f = None
     if fn == '-':
         f = sys.stdin
     else:
@@ -58,8 +74,6 @@ def parseGFA(fn,skipSeq=False):
             assert name not in G.segments, "Segments cannot be repeated in GFA"
             seq = l[2] if not skipSeq else '*'
             opts = parseOpts(l[3:])
-
-
             G.addSegment(name,seq,opts)
         elif line[0] == 'L':
             l = line.split()
@@ -84,9 +98,8 @@ def parseGFA(fn,skipSeq=False):
             cigar = l[5]
             opts = parseOpts(l[6:])
 
-            G.addLink(
-                
-        
+            G.addLink(id1,o1,id2,o2,cigar,opts)
+
     if fn != '-':
         f.close()
 
@@ -94,16 +107,48 @@ def parseGFA(fn,skipSeq=False):
 
 
 def printGFA(G,opt):
-    pass
+    # ignores opts, prints to stdout
+    f = sys.stdout
 
-if __name__ == '__python__':
+    # header
+    f.write('H\tVN:Z:1.0\n')
+
+    ids = list(G.segments.keys())
+    allint = True
+    try:
+        for x in ids:
+            int(x)
+    except ValueError:
+        allint = False
+
+    keyfn = id
+    if allint:
+        keyfn = int
+
+    ids.sort(key=keyfn)
+
+    for x in ids:
+        f.write('S\t%s\t%s%s\n'%(x,G.segments[x],'\t'+printOpts(G.info[x]) if x in G.info else ''))
+
+
+    lkeyfn = lambda x: (keyfn(x[0]),x[1])
+    links = list(G.links.keys())
+    links.sort(key=lkeyfn)
+
+    ori = {True:'+',False:'-'}
+    for x,o in links:
+        for xx,oo in G.links[(x,o)]:
+            cig,opts = G.links[(x,o)][(xx,oo)]
+            f.write('L\t%s\t%s\t%s\t%s\t%s%s\n'%(x,ori[o],xx,ori[oo],cig,'\n'+printOpts(opts) if not len(opt)==0 else ''))
+
+
+if __name__ == '__main__':
     cmds = {'print':printGFA}
     v = sys.argv[1:]
     if len(v) < 2:
-        print 'Usage: python pyGFA.py <command> <in.GFA> [options]'
-    else:        
+        print('Usage: python pyGFA.py <command> <in.GFA> [options]')
+    else:
         cmd = v[0]
         if cmd in cmds:
             G = parseGFA(v[1])
             cmds[cmd](G,v[2:])
-        
