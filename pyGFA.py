@@ -13,10 +13,19 @@ class GFAGraph:
         self.info[name] = opts
 
     def addLink(self,id1,o1,id2,o2,cig,opts={}):
+        if (id1,o1) in self.links:
+            if (id2, o2) in self.links[(id1,o1)]:
+                oldcig,oldopts = self.links[(id1,o1)][(id2,o2)]
+                print(oldcig,oldopts,cig,opts)
+                assert rev_cig(cig) == oldcig and "Repeated cigar string does not match!"
+                assert oldopts == opts and "Repeated options don't match"
+                return
+
         for x in (id1,id2):
             if x not in self.links:
                 self.links[(x,True)] = {}
                 self.links[(x,False)] = {}
+
         self.links[(id1,o1)][(id2,o2)] = (cig,opts)
         self.links[(id2,not o2)][(id1, not o1)] = (rev_cig(cig),opts)
 
