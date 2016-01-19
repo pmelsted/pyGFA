@@ -11,18 +11,20 @@ class GFAGraph:
     def addSegment(self,name,seq,opts={}):
         self.segments[name] = seq
         self.info[name] = opts
+        for o in True,False:
+            if (name,o) not in self.links:
+                self.links[(name,o)] = {}
 
     def addLink(self,id1,o1,id2,o2,cig,opts={}):
         if (id1,o1) in self.links:
             if (id2, o2) in self.links[(id1,o1)]:
                 oldcig,oldopts = self.links[(id1,o1)][(id2,o2)]
-                print(oldcig,oldopts,cig,opts)
                 assert rev_cig(cig) == oldcig and "Repeated cigar string does not match!"
                 assert oldopts == opts and "Repeated options don't match"
                 return
 
         for x in (id1,id2):
-            if x not in self.links:
+            if (x,True) not in self.links:
                 self.links[(x,True)] = {}
                 self.links[(x,False)] = {}
 
@@ -150,9 +152,30 @@ def printGFA(G,opt):
             cig,opts = G.links[(x,o)][(xx,oo)]
             f.write('L\t%s\t%s\t%s\t%s\t%s%s\n'%(x,ori[o],xx,ori[oo],cig,'\n'+printOpts(opts) if not len(opt)==0 else ''))
 
+def subGraph(G,opts):
+    anchor = opts[0]
+    assert anchor in G.segments and "Error: specified id = %s is not in the graph"%(anchor)
+
+    subG = GFAGraph()
+    stack = [anchor]
+    while stack:
+        x = stack.pop()
+        if x not in subG.segments:
+            subG.addSegment(x,G.segments[x],G.info[x])
+            for o in True,False:
+                for xx,oo in G.links[(x,o)]:
+                    if xx in subG.segments:
+                        ## both x and xx are in the graph, add the links
+                        cig,opts = G.links[(x,o)][(xx,oo)]
+                        subG.addLink(x,o,xx,oo,cig,opts)
+                    else:
+                        ## xx not yet in graph, put it on the list
+                        stack.append(xx)
+    printGFA(subG,[])
+
 
 if __name__ == '__main__':
-    cmds = {'print':printGFA}
+    cmds = {'print':printGFA, 'subgraph':subGraph}
     v = sys.argv[1:]
     if len(v) < 2:
         print('Usage: python pyGFA.py <command> <in.GFA> [options]')
