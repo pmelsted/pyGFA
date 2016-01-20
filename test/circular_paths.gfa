@@ -1,0 +1,23 @@
+H       HVN:Z:1.0
+S       1       TC
+L       1       +       2       +       0M
+S       2       AGATTCTCATCCCTCCTCAAGGGCTTCT
+L       2       +       6       +       0M
+L       2       +       3       +       0M
+S       3       AACTACT
+L       3       +       4       +       0M
+S       4       CCACATCAAAGCTACCCAG
+L       4       +       5       +       0M
+S       5       GCCATTTTAAGTTTCCTGT
+L       5       +       6       +       0M
+S       6       GGACTAA
+L       6       +       7       +       0M
+S       7       GGACAAAGGT
+L       7       +       8       +       0M
+L       7       +       10      +       0M
+S       8       GCGGGGAG
+S       10      GCGGGGAGTC
+L       10      +       2       +       0M
+P   s1  1+,2+,3+,4+,5+,6+,7+,8+ 0M,0M,0M,0M,0M,0M,0M
+P   s2  1+,2+,6+,7+,8+  0M,0M,0M,0M
+P   s3  4+,5+,6+,7+,9+,2+,3+,4+,5+,6+,7+,10+,2+,6+  0M,0M,0M,0M,0M,0M,0M,0M,0M,0M,0M,0M,0M

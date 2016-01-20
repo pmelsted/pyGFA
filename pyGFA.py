@@ -17,8 +17,8 @@ class GFAGraph:
 
     def addPath(self,name,ids,oris,cigs,opts={}):
         assert len(ids) == len(oris) and "Error: orienations and ids don't match"
-        assert (cigs=='*' or len(cigs) == len(ids)-1 or len(cigs) == len(ids)) and "Error incorrect number of cigar strings"
-        if cigs == '*':
+        assert (cigs==['*'] or len(cigs) == len(ids)-1 or len(cigs) == len(ids)) and "Error incorrect number of cigar strings"
+        if cigs == ['*']:
             cigs = ['*' for x in range(len(ids)-1)]
         assert name not in self.paths and "Error: cannot repeat paths in GFA"
 
@@ -151,7 +151,7 @@ def printGFA(G,opt):
     allint = True
     try:
         for x in ids:
-            int(x)
+                int(x)
     except ValueError:
         allint = False
 
@@ -181,7 +181,16 @@ def printGFA(G,opt):
             f.write('L\t%s\t%s\t%s\t%s\t%s%s\n'%(x,ori[o],xx,ori[oo],cig,'\t'+printOpts(opts) if not len(opts)==0 else ''))
 
     paths = list(G.paths.keys())
-    paths.sort(key=keyfn)
+    allpathint = True
+    try:
+        for x in paths:
+                int(x)
+    except ValueError:
+        allpathint = False
+    pathkeyfn = id
+    if allpathint:
+        pathkeyfn = int
+    paths.sort(key=pathkeyfn)
 
     for path in paths:
         segs,oris,cigs,opts = G.paths[path]
