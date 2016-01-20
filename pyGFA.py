@@ -225,7 +225,51 @@ def connected(G,opts):
     return subG
 
 def subgraph(G,opts):
-    return G
+    ids = set(opts[0].split(','))
+    for x in ids:
+        assert x in G.segments and "Error, segment not found in graph"
+
+    subG = GFAGraph()
+    # add segments
+    for x in ids:
+        subG.addSegment(x,G.segments[x], G.info[x])
+
+    # add links
+    for x in ids:
+        for o in True,False:
+            if (x,o) in G.links:
+                for xx,oo in G.links[(x,o)]:
+                    if xx in ids:
+                        cig,opts = G.links[(x,o)][(xx,oo)]
+                        subG.addLink(x,o,xx,oo,cig,opts)
+
+
+
+    # add paths
+    # TODO: handle logic for subgraphing circular paths
+    for path in G.paths:
+        segs,oris,cigs,opts = G.paths[path]
+        circular = len(segs) == len(cigs)
+        i = 1
+        a,b = 0,0
+        while a < len(segs):
+            b = a + 1
+            if segs[a] in ids:
+                while b < len(segs) and segs[b] in ids:
+                    b += 1
+                # now segs[a:b] are all in the subgraph
+                # copy the path
+                if a==0 and b == len(segs):
+                    subG.addPath(path,segs,oris,cigs,opts)
+                    break # special case copy the original path
+                elif b-a > 1:
+                    subG.addPath("%s_%s"%(path,i), segs[a:b],oris[a:b],cigs[a:b-1],opts)
+                    i += 1
+            a = b # next to check
+
+    return subG
+
+
 
 if __name__ == '__main__':
     cmds = {'print':printGFA,
