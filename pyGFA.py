@@ -6,7 +6,7 @@ class GFAGraph:
         self.segments = {} # id -> seq
         self.info = {} # id -> info for segment
         self.links = {} # (id,bool) -> {(id,bool)-> (cig,opts)}
-        self.paths = {} # ?!?
+        self.paths = {} # id -> (ids,oris,cigs,opts)
 
     def addSegment(self,name,seq,opts={}):
         self.segments[name] = seq
@@ -14,6 +14,16 @@ class GFAGraph:
         for o in True,False:
             if (name,o) not in self.links:
                 self.links[(name,o)] = {}
+
+    def addPath(self,name,ids,oris,cigs,opts={}):
+        assert len(ids) == len(oris) and "Error: orienations and ids don't match"
+        assert (cigs=='*' or len(cigs) == len(ids)-1 or len(cigs) == len(ids)) and "Error incorrect number of cigar strings"
+        if cigs == '*':
+            cigs = ['*' for x in range(len(ids)-1)]
+        assert name not in self.paths and "Error: cannot repeat paths in GFA"
+
+        self.paths[name] = (ids,oris,cigs,opts)
+
 
     def addLink(self,id1,o1,id2,o2,cig,opts={}):
         if (id1,o1) in self.links:
@@ -30,6 +40,7 @@ class GFAGraph:
 
         self.links[(id1,o1)][(id2,o2)] = (cig,opts)
         self.links[(id2,not o2)][(id1, not o1)] = (rev_cig(cig),opts)
+
 
 
 
@@ -110,6 +121,18 @@ def parseGFA(fn,skipSeq=False):
             opts = parseOpts(l[6:])
 
             G.addLink(id1,o1,id2,o2,cigar,opts)
+        elif line[0] == 'P':
+            l = line.split()
+            assert len(l) >= 4 and "Error: too few columns in path"
+            assert l[0] == 'P' and "Incorrect path specifier"
+            name = l[1]
+            segnames = l[2].split(',')
+            orifn = {'+':True,'-':False}
+            oris = list(orifn[x[-1]] for x in segnames)
+            segs = list(x[:-1] for x in segnames)
+            cigs = l[3].split(',')
+            opts = parseOpts(l[4:])
+            G.addPath(name,segs,oris,cigs,opts)
 
     if fn != '-':
         f.close()
@@ -149,10 +172,29 @@ def printGFA(G,opt):
     ori = {True:'+',False:'-'}
     for x,o in links:
         for xx,oo in G.links[(x,o)]:
-            cig,opts = G.links[(x,o)][(xx,oo)]
-            f.write('L\t%s\t%s\t%s\t%s\t%s%s\n'%(x,ori[o],xx,ori[oo],cig,'\n'+printOpts(opts) if not len(opt)==0 else ''))
+            if o != oo and keyfn(x) > keyfn(xx):
+                continue
+            elif o == False and oo == False:
+                continue
 
-def subGraph(G,opts):
+            cig,opts = G.links[(x,o)][(xx,oo)]
+            f.write('L\t%s\t%s\t%s\t%s\t%s%s\n'%(x,ori[o],xx,ori[oo],cig,'\t'+printOpts(opts) if not len(opts)==0 else ''))
+
+    paths = list(G.paths.keys())
+    paths.sort(key=keyfn)
+
+    for path in paths:
+        segs,oris,cigs,opts = G.paths[path]
+        cigstr = None
+        if len(cigs) == len(segs)-1 and all(x=='*' for x in cigs):
+            cigstr = '*'
+        else:
+            cigstr = ','.join(cigs)
+
+        pstr = ','.join(a+ori[b] for a,b in zip(segs,oris))
+        f.write('P\t%s\t%s\t%s%s\n'%(path,pstr,cigstr,'\t'+printOpts(opts) if not len(opts)==0 else ''))
+
+def connected(G,opts):
     anchor = opts[0]
     assert anchor in G.segments and "Error: specified id = %s is not in the graph"%(anchor)
 
@@ -171,11 +213,17 @@ def subGraph(G,opts):
                     else:
                         ## xx not yet in graph, put it on the list
                         stack.append(xx)
-    printGFA(subG,[])
+    return subG
 
+def subgraph(G,opts):
+    return G
 
 if __name__ == '__main__':
-    cmds = {'print':printGFA, 'subgraph':subGraph}
+    cmds = {'print':printGFA,
+            'connected': lambda G,opts: printGFA(connected(G,opts),opts),
+            'subgraph': lambda G,opts : printGFA(subgraph(G,opts),opts)
+
+            }
     v = sys.argv[1:]
     if len(v) < 2:
         print('Usage: python pyGFA.py <command> <in.GFA> [options]')

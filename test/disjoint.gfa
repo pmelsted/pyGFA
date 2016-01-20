@@ -4,6 +4,6 @@ S   12  TCAAGG
 S   13  CTTGATT
 S   14  AAAAA
 L   11  +   12  -   4M
-L   12  -   13  +   5M
+L   13  -   12  +   5M
 L   11  +   13  +   3M
 L   14  +   14  +   0M
