@@ -252,6 +252,8 @@ def subgraph(G,opts):
         circular = len(segs) == len(cigs)
         i = 1
         a,b = 0,0
+        firstPath = None
+        lastPath = None
         while a < len(segs):
             b = a + 1
             if segs[a] in ids:
@@ -259,12 +261,30 @@ def subgraph(G,opts):
                     b += 1
                 # now segs[a:b] are all in the subgraph
                 # copy the path
-                if a==0 and b == len(segs):
-                    subG.addPath(path,segs,oris,cigs,opts)
-                    break # special case copy the original path
-                elif b-a > 1:
-                    subG.addPath("%s_%s"%(path,i), segs[a:b],oris[a:b],cigs[a:b-1],opts)
+                if circular and a==0 and b < len(segs):
+                    firstPath = b
+                else:
+                    if a==0 and b == len(segs):
+                        subG.addPath(path,segs,oris,cigs,opts)
+                        break # special case copy the original path
+                    elif b-a > 1:
+                        if circular and b == len(segs) and firstPath is not None:
+                            #special case, original path is circular
+                            lastPath = a
+                        else:
+                            cigB = b if not circular else b+1
+                            subG.addPath("%s_%s"%(path,i), segs[a:b],oris[a:b],cigs[a:cigB],opts)
+                            i += 1
+
+            if firstPath is not None:
+                if lastPath is not None:
+                    subG.addPath("%s_%s"%(path,i), segs[lastPath:] + segs[:firstPath], oris[lastPath:] + oris[:firstPath], cigs[lastPath:] + cigs[:firstPath] ,opts)
                     i += 1
+                else:
+                    subG.addPath("%s_%s"%(path,i), segs[:firstPath], oris[:firstPath], cigs[:firstPath], opts)
+                    i += 1
+            elif lastPath is not None:
+                subG.addPath("%s_%s"%(path,i), segs[lastPath:], oris[lastPath:], cigs[lastPath:], opts)
             a = b # next to check
 
     return subG
